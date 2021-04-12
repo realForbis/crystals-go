@@ -49,18 +49,18 @@ func unpack(r []byte, K int) Vec {
 	return v
 }
 
-func (v Vec) compress(d int, polylen int, K int) []byte {
-	c := make([]byte, K*polylen)
+func (v Vec) compress(d int, K int) []byte {
+	c := make([]byte, K*d*n/8)
 	for i := 0; i < K; i++ {
-		copy(c[i*polylen:], v[i].compress(d, polylen))
+		copy(c[i*d*n/8:], v[i].compress(d))
 	}
 	return c[:]
 }
 
-func decompressVec(c []byte, d int, buflen, K int) Vec {
+func decompressVec(c []byte, d int, K int) Vec {
 	v := make(Vec, K)
 	for i := 0; i < K; i++ {
-		v[i] = decompressPoly(c[i*buflen:], d)
+		v[i] = decompressPoly(c[i*d*n/8:], d)
 	}
 	return v
 }

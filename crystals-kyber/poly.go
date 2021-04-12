@@ -167,8 +167,8 @@ func (p *Poly) toMont() {
 	}
 }
 
-func (p *Poly) compress(d int, polylen int) []byte {
-	c := make([]byte, polylen)
+func (p *Poly) compress(d int) []byte {
+	c := make([]byte, n*d/8)
 	switch d { //4,5,10,11 or ?
 
 	//size of the poly is N*3/8
@@ -229,6 +229,52 @@ func (p *Poly) compress(d int, polylen int) []byte {
 			c[id+1] = byte(t[1]>>2) | byte(t[2]<<4)
 			c[id+2] = byte(t[2]>>2) | byte(t[3]<<2)
 			id += 3
+		}
+
+	case 7:
+		var t [8]uint16
+		id :=0
+		for i := 0; i < n/8; i++ {
+			for j := 0; j < 8; j++ {
+				t[j] = uint16(((uint32(p[8*i+j])<<7)+uint32(q)/2)/
+					uint32(q)) & ((1 << 7) - 1)
+				}
+			c[id] = byte(t[0]) | byte(t[1]<<7)
+			c[id+1] = byte(t[1]>>1)| byte(t[2]<<6)
+			c[id+2] = byte(t[2]>>2) | byte(t[3]<<5)
+			c[id+3] = byte(t[3]>>3) | byte(t[4]<<4)
+			c[id+4] = byte(t[4]>>4) | byte(t[5]<<3)
+			c[id+5] = byte(t[5]>>5) | byte(t[6]<<2)
+			c[id+6] = byte(t[6]>>6) | byte(t[7]<<1)
+			id += 7
+		}
+
+	case 8:
+		var t uint16
+		for i := 0; i < n; i++ {
+				t = uint16(((uint32(p[i])<<8)+uint32(q)/2)/
+					uint32(q)) & ((1 << 8) - 1)
+			c[i] = byte(t)
+		}
+
+	case 9:
+		var t [8]uint16
+		id := 0
+		for i := 0; i < n/8; i++ {
+			for j := 0; j < 8; j++ {
+				t[j] = uint16(((uint32(p[8*i+j])<<9)+uint32(q)/2)/
+					uint32(q)) & ((1 << 9) - 1)
+			}
+			c[id] = byte(t[0])
+			c[id+1] = byte(t[0]>>8) | byte(t[1]<<1)
+			c[id+2] = byte(t[1]>>7) | byte(t[2]<<2)
+			c[id+3] = byte(t[2]>>6) | byte(t[3]<<3)
+			c[id+4] = byte(t[3]>>5) | byte(t[4]<<4)
+			c[id+5] = byte(t[4]>>4) | byte(t[5]<<5)
+			c[id+6] = byte(t[5]>>3) | byte(t[6]<<6)
+			c[id+7] = byte(t[6]>>2) | byte(t[7]<<7)
+			c[id+8] = byte(t[7]>>1)
+			id += 9
 		}
 
 	case 10:
@@ -297,10 +343,8 @@ func decompressPoly(c []byte, d int) Poly {
 		}
 	case 4:
 		for i := 0; i < n/2; i++ {
-			p[2*i] = int16(((1 << 3) +
-				uint32(c[i]&15)*uint32(q)) >> 4)
-			p[2*i+1] = int16(((1 << 3) +
-				uint32(c[i]>>4)*uint32(q)) >> 4)
+			p[2*i] = int16(((1 << 3) + uint32(c[i]&15)*uint32(q)) >> 4)
+			p[2*i+1] = int16(((1 << 3) + uint32(c[i]>>4)*uint32(q)) >> 4)
 		}
 	case 5:
 		var t [8]uint16
@@ -336,6 +380,52 @@ func decompressPoly(c []byte, d int) Poly {
 					uint32(t[j]&((1<<6)-1))*uint32(q)) >> 6)
 			}
 			id += 3
+		}
+
+	case 7:
+		var t [8]uint16
+		id := 0
+		for i := 0; i < n/8; i++ {
+			t[0] = uint16(c[id])
+			t[1] = (uint16(c[id]) >> 7) | (uint16(c[id+1]) << 1)
+			t[2] = (uint16(c[id+1]) >> 6) | (uint16(c[id+2]) << 2)
+			t[3] = (uint16(c[id+2]) >> 5) | (uint16(c[id+3]) << 3)
+			t[4] = (uint16(c[id+3]) >> 4) | (uint16(c[id+4]) << 4)
+			t[5] = (uint16(c[id+4]) >> 3) | (uint16(c[id+5]) << 5)
+			t[6] = (uint16(c[id+5]) >> 2) | (uint16(c[id+6]) << 6)
+			t[7] = (uint16(c[id+6]) >> 1)
+
+			for j := 0; j < 8; j++ {
+				p[8*i+j] = int16(((1 << 6) +
+					uint32(t[j]&((1<<7)-1))*uint32(q)) >> 7)
+			}
+			id += 7
+		}
+
+	case 8:
+		for i := 0; i < n; i++{
+				p[i] = int16(((1 << 7) +
+					uint32(uint16(c[i])&((1<<8)-1))*uint32(q)) >> 8)
+		}
+
+	case 9:
+		var t [8]uint16
+		id := 0
+		for i := 0; i < n/8; i++ {
+			t[0] = uint16(c[id]) | (uint16(c[id+1]) << 8)
+			t[1] = (uint16(c[id+1]) >> 1) | (uint16(c[id+2]) << 7)
+			t[2] = (uint16(c[id+2]) >> 2) | (uint16(c[id+3]) << 6)
+			t[3] = (uint16(c[id+3]) >> 3) | (uint16(c[id+4]) << 5)
+			t[4] = (uint16(c[id+4]) >> 4) | (uint16(c[id+5]) << 4)
+			t[5] = (uint16(c[id+5]) >> 5) | (uint16(c[id+6]) << 3)
+			t[6] = (uint16(c[id+6]) >> 6) | (uint16(c[id+7]) << 2)
+			t[7] = (uint16(c[id+7]) >> 7) | (uint16(c[id+8]) << 1)
+
+			for j := 0; j < 8; j++ {
+				p[8*i+j] = int16(((1 << 8) +
+					uint32(t[j]&((1<<9)-1))*uint32(q)) >> 9)
+			}
+			id += 9
 		}
 
 	case 10:

@@ -3,14 +3,13 @@ package kyber
 import (
 	"crypto/rand"
 
+	"golang.org/x/crypto/blake2s"
 	"golang.org/x/crypto/sha3"
 )
 
-func (k *Kyber) PKEKeyGen(seed []byte) ([]byte, []byte) {
-	if seed == nil || len(seed) != SEEDBYTES {
-		seed = make([]byte, SEEDBYTES)
-		rand.Read(seed)
-	}
+func (k *Kyber) CPAKeyGen() ([]byte, []byte) {
+	seed := make([]byte, SEEDBYTES)
+	rand.Read(seed)
 
 	K := k.params.K
 	ETA1 := k.params.ETA1
@@ -24,7 +23,6 @@ func (k *Kyber) PKEKeyGen(seed []byte) ([]byte, []byte) {
 
 	Ahat := expandSeed(rho[:], false, K)
 
-	//var shat Vec
 	shat := make(Vec, K)
 	for i := 0; i < K; i++ {
 		shat[i] = polyGetNoise(ETA1, sseed[:], byte(i))
@@ -49,39 +47,27 @@ func (k *Kyber) PKEKeyGen(seed []byte) ([]byte, []byte) {
 	return k.PackPK(&PublicKey{T: t, Rho: rho[:]}), k.PackPKESK(&PKEPrivateKey{S: shat})
 }
 
-func (k *Kyber) Encrypt(msg []byte, r []byte, packedPK []byte) []byte {
-
-	if len(msg) < n/8 {
-		println("Message is too short to be encrypted.")
-		return nil
-	}
-
-	if len(packedPK) != k.SIZEPK() {
-		println("Cannot encrypt with this public key.")
-		return nil
-	}
-
-	if len(r) != SEEDBYTES {
-		r = make([]byte, SEEDBYTES)
-		rand.Read(r[:])
-	}
+func (k *Kyber) CPAEncaps(ppk []byte) ([]byte, []byte) {
+	var msg [32]byte
+	rand.Read(msg[:])
+	kr := sha3.Sum512(msg[:])
 
 	K := k.params.K
-	pk := k.UnpackPK(packedPK)
+	pk := k.UnpackPK(ppk)
 	Ahat := expandSeed(pk.Rho[:], true, K)
 
 	//var sp, ep Vec
 	sp := make(Vec, K)
 	for i := 0; i < K; i++ {
-		sp[i] = polyGetNoise(k.params.ETA1, r[:], byte(i)) //use i
+		sp[i] = polyGetNoise(k.params.ETA1, kr[32:], byte(i)) //use i
 		sp[i].ntt()
 		sp[i].reduce()
 	}
 	ep := make(Vec, K)
 	for i := 0; i < K; i++ {
-		ep[i] = polyGetNoise(eta2, r[:], byte(i+K))
+		ep[i] = polyGetNoise(eta2, kr[32:], byte(i+K))
 	}
-	epp := polyGetNoise(eta2, r[:], byte(2*K))
+	epp := polyGetNoise(eta2, kr[32:], byte(2*K))
 
 	//var u Vec
 	u := make(Vec, K)
@@ -97,22 +83,20 @@ func (k *Kyber) Encrypt(msg []byte, r []byte, packedPK []byte) []byte {
 	v := vecPointWise(pk.T, sp, K)
 	v.invntt()
 	v = add(v, epp)
-	m := polyFromMsg(msg)
+	m := polyFromMsg(kr[:32])
 	v = add(v, m)
 	v.reduce()
 
 	c := make([]byte, k.params.SIZEC)
 	copy(c[:], u.compress(k.params.DU, K))
 	copy(c[K*k.params.DU*n/8:], v.compress(k.params.DV))
-	return c[:]
+
+	ss := blake2s.Sum256(kr[:32])
+	return c, ss[:]
 }
 
-func (k *Kyber) Decrypt(c []byte, packedSK []byte) []byte {
-	if len(c) != k.SIZEC() || len(packedSK) != k.SIZEPKESK() {
-		println("Cannot decrypt, inputs do not have correct size.")
-		return nil
-	}
-	sk := k.UnpackPKESK(packedSK)
+func (k *Kyber) CPADecaps(c []byte, psk []byte) []byte {
+	sk := k.UnpackPKESK(psk)
 	K := k.params.K
 	uhat := decompressVec(c[:K*k.params.DU*n/8], k.params.DU, K)
 	uhat.ntt(K)
@@ -123,5 +107,7 @@ func (k *Kyber) Decrypt(c []byte, packedSK []byte) []byte {
 
 	m = sub(v, m)
 	m.reduce()
-	return polyToMsg(m)
+	kr := polyToMsg(m)
+	ss := blake2s.Sum256(kr)
+	return ss[:]
 }

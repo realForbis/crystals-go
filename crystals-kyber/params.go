@@ -4,18 +4,19 @@ package kyber
 
 const (
 	n            = 256
-	q            = 3329
-	qInv         = 62209
+	q            = 3329  //769   //257
+	qInv         = 62209 //64769 //65281
 	eta2         = 2
 	shake128Rate = 168
 	polysize     = 384
 
-	SIZEZ             = 32
-	SEEDBYTES         = 32
-	Kyber512SizePK    = 800
-	Kyber512SizeSK    = 1632
-	Kyber512SizePKESK = 768
-	Kyber512SizeC     = 768 //2*320 + 128
+	SIZEZ                = 32
+	SEEDBYTES            = 32
+	Kyber512SizePK       = 800
+	Kyber512SizeSK       = 1632
+	Kyber512SizePKESK    = 768
+	Kyber512SizeC        = 768 //2*320 + 128
+	KyberTweaked512SizeC = 608 //2*320 + 128
 
 	Kyber768SizePK    = 1184
 	Kyber768SizeSK    = 2400
@@ -34,33 +35,46 @@ type Kyber struct {
 }
 
 type parameters struct {
-	K               int
-	ETA1            int
-	DU              int
-	DV              int
-	COMPPOLYSIZE_DU int
-	COMPPOLYSIZE_DV int
-	SIZEPK          int //= K*POLYSIZE + SEEDBYTES
-	SIZESK          int //= SIZEZ + 32 + SIZEPK + K*POLYSIZE
-	SIZEPKESK       int //= K * POLYSIZE
-	SIZEC           int
+	K         int
+	ETA1      int
+	DU        int
+	DV        int
+	SIZEPK    int //= K*POLYSIZE + SEEDBYTES
+	SIZESK    int //= SIZEZ + 32 + SIZEPK + K*POLYSIZE
+	SIZEPKESK int //= K * POLYSIZE
+	SIZEC     int
 	//SIZEPKEPK       int //= SIZEPK
+}
+
+func NewTweakedKyber512() *Kyber {
+	du := 8
+	dv := 3
+	return &Kyber{
+		Name: "Kyber512",
+		params: &parameters{
+			K:         2,
+			ETA1:      3,
+			DU:        du,
+			DV:        dv,
+			SIZEPK:    800,
+			SIZESK:    1632,
+			SIZEPKESK: 768,
+			SIZEC:     2*n*du/8 + n*dv/8,
+		}}
 }
 
 func NewKyber512() *Kyber {
 	return &Kyber{
 		Name: "Kyber512",
 		params: &parameters{
-			K:               2,
-			ETA1:            3,
-			DU:              10,
-			DV:              4,
-			COMPPOLYSIZE_DU: 320,
-			COMPPOLYSIZE_DV: 128,
-			SIZEPK:          800,
-			SIZESK:          1632,
-			SIZEPKESK:       768,
-			SIZEC:           2*320 + 128,
+			K:         2,
+			ETA1:      3,
+			DU:        10,
+			DV:        4,
+			SIZEPK:    800,
+			SIZESK:    1632,
+			SIZEPKESK: 768,
+			SIZEC:     768,
 		}}
 }
 
@@ -68,16 +82,14 @@ func NewKyber768() *Kyber {
 	return &Kyber{
 		Name: "Kyber768",
 		params: &parameters{
-			K:               3,
-			ETA1:            2,
-			DU:              10,
-			DV:              4,
-			COMPPOLYSIZE_DU: 320,
-			COMPPOLYSIZE_DV: 128,
-			SIZEPK:          1184,
-			SIZESK:          2400,
-			SIZEPKESK:       1152,
-			SIZEC:           3*320 + 128,
+			K:         3,
+			ETA1:      2,
+			DU:        10,
+			DV:        4,
+			SIZEPK:    1184,
+			SIZESK:    2400,
+			SIZEPKESK: 1152,
+			SIZEC:     1088,
 		}}
 }
 
@@ -85,16 +97,14 @@ func NewKyber1024() *Kyber {
 	return &Kyber{
 		Name: "Kyber1024",
 		params: &parameters{
-			K:               4,
-			ETA1:            2,
-			DU:              11,
-			DV:              5,
-			COMPPOLYSIZE_DU: 352,
-			COMPPOLYSIZE_DV: 160,
-			SIZEPK:          1568,
-			SIZESK:          3168,
-			SIZEPKESK:       1536,
-			SIZEC:           4*352 + 160,
+			K:         4,
+			ETA1:      2,
+			DU:        11,
+			DV:        5,
+			SIZEPK:    1568,
+			SIZESK:    3168,
+			SIZEPKESK: 1536,
+			SIZEC:     1568,
 		}}
 }
 
