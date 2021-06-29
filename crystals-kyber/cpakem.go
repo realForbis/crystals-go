@@ -56,36 +56,39 @@ func (k *Kyber) CPAEncaps(ppk []byte) ([]byte, []byte) {
 	pk := k.UnpackPK(ppk)
 	Ahat := expandSeed(pk.Rho[:], true, K)
 
-	//var sp, ep Vec
 	sp := make(Vec, K)
 	for i := 0; i < K; i++ {
-		sp[i] = polyGetNoise(k.params.ETA1, kr[32:], byte(i)) //use i
+		sp[i] = polyGetNoise(k.params.ETA1, kr[32:], byte(i))
 		sp[i].ntt()
 		sp[i].reduce()
 	}
 	ep := make(Vec, K)
 	for i := 0; i < K; i++ {
 		ep[i] = polyGetNoise(eta2, kr[32:], byte(i+K))
+		ep[i].ntt()
 	}
 	epp := polyGetNoise(eta2, kr[32:], byte(2*K))
+	epp.ntt()
 
-	//var u Vec
 	u := make(Vec, K)
 	for i := 0; i < K; i++ {
 		u[i] = vecPointWise(Ahat[i], sp, K)
-		u[i].reduce()
-		u[i].invntt()
+		u[i].toMont()
 		u[i] = add(u[i], ep[i])
+		u[i].invntt()
 		u[i].reduce()
-		u[i].freeze()
+		u[i].fromMont()
 	}
 
 	v := vecPointWise(pk.T, sp, K)
-	v.invntt()
+	v.toMont()
 	v = add(v, epp)
 	m := polyFromMsg(kr[:32])
+	m.ntt()
 	v = add(v, m)
+	v.invntt()
 	v.reduce()
+	v.fromMont()
 
 	c := make([]byte, k.params.SIZEC)
 	copy(c[:], u.compress(k.params.DU, K))
@@ -95,18 +98,20 @@ func (k *Kyber) CPAEncaps(ppk []byte) ([]byte, []byte) {
 	return c, ss[:]
 }
 
-func (k *Kyber) CPADecaps(c []byte, psk []byte) []byte {
+func (k *Kyber) CPADecaps(psk, c []byte) []byte {
 	sk := k.UnpackPKESK(psk)
 	K := k.params.K
 	uhat := decompressVec(c[:K*k.params.DU*n/8], k.params.DU, K)
 	uhat.ntt(K)
 	v := decompressPoly(c[K*k.params.DU*n/8:], k.params.DV)
+	v.ntt()
 
 	m := vecPointWise(sk.S, uhat, K)
-	m.invntt()
-
+	m.toMont()
 	m = sub(v, m)
+	m.invntt()
 	m.reduce()
+	m.fromMont()
 	kr := polyToMsg(m)
 	ss := blake2s.Sum256(kr)
 	return ss[:]

@@ -1,17 +1,12 @@
 package kyber
 
 import (
-	"archive/zip"
 	"bufio"
 	"bytes"
 	"crypto/aes"
 	"encoding/hex"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -34,8 +29,8 @@ func (g *randomBytes) incV() {
 	}
 }
 
-// AES256_CTR_randomBytes_Update(pd, &g.key, &g.v)
-func (g *randomBytes) randombyte_update(pd *[48]byte) {
+// AES256_CTR_randomBytes_update(pd, &g.key, &g.v)
+func (g *randomBytes) randombyteUpdate(pd *[48]byte) {
 	var buf [48]byte
 	b, _ := aes.NewCipher(g.key[:])
 	for i := 0; i < 3; i++ {
@@ -52,8 +47,8 @@ func (g *randomBytes) randombyte_update(pd *[48]byte) {
 }
 
 // randombyte_init(seed, NULL, 256)
-func randombyte_init(seed *[48]byte) (g randomBytes) {
-	g.randombyte_update(seed)
+func randombyteInit(seed *[48]byte) (g randomBytes) {
+	g.randombyteUpdate(seed)
 	return
 }
 
@@ -72,43 +67,53 @@ func (g *randomBytes) randombytes(x []byte) {
 		copy(x[:], block[:])
 		x = x[16:]
 	}
-	g.randombyte_update(nil)
+	g.randombyteUpdate(nil)
 }
 
 func TestKAT(t *testing.T) {
-
-	GOLDEN_ZIP := "https://pq-crystals.org/kyber/data/kyber-submission-nist-round3.zip"
-	os.Mkdir("testdata", 0755)
-	cached := "testdata/" + path.Base(GOLDEN_ZIP)
-	zipfile, err := zip.OpenReader(cached)
-	if err != nil {
-		t.Logf("Retrieving golden KAT zip from %s", GOLDEN_ZIP)
-		resp, _ := http.Get(GOLDEN_ZIP)
-		body, _ := ioutil.ReadAll(resp.Body)
-		ioutil.WriteFile(cached, body, 0644)
-		zipfile, _ = zip.OpenReader(cached)
-		resp.Body.Close()
+	/**
+		GOLDEN_ZIP := "https://pq-crystals.org/kyber/data/kyber-submission-nist-round3.zip"
+		os.Mkdir("testdata", 0755)
+		cached := "testdata/" + path.Base(GOLDEN_ZIP)
+		zipfile, err := zip.OpenReader(cached)
+		if err != nil {
+			t.Logf("Retrieving golden KAT zip from %s", GOLDEN_ZIP)
+			resp, _ := http.Get(GOLDEN_ZIP)
+			body, _ := ioutil.ReadAll(resp.Body)
+			ioutil.WriteFile(cached, body, 0644)
+			zipfile, _ = zip.OpenReader(cached)
+			resp.Body.Close()
+		}
+		testKAT(t, zipfile, NewKyber512())
+		testKAT(t, zipfile, NewKyber768())
+		testKAT(t, zipfile, NewKyber1024())
 	}
-	testKAT(t, zipfile, NewKyber512())
-	testKAT(t, zipfile, NewKyber768())
-	testKAT(t, zipfile, NewKyber1024())
+	**/
+
+	testKAT(t, NewKyber512())
+	testKAT(t, NewKyber768())
+	testKAT(t, NewKyber1024())
 }
 
-func testKAT(t *testing.T, zipfile *zip.ReadCloser, k *Kyber) {
+func testKAT(t *testing.T, k *Kyber) {
+	//	func testKAT(t *testing.T, zipfile *zip.ReadCloser, k *Kyber) {
 
+	/**
 	var katfile io.ReadCloser
-	gotkat := false
-	for _, f := range zipfile.File {
-		GOLDEN_KAT := fmt.Sprintf("PQCkemKAT_%d.rsp", k.params.SIZESK)
-		if strings.HasSuffix(f.Name, GOLDEN_KAT) {
-			katfile, _ = f.Open()
-			gotkat = true
-			break
+		gotkat := false
+		for _, f := range zipfile.File {
+			goldenKAT := fmt.Sprintf("PQCkemKAT_%d.rsp", k.params.SIZESK)
+			if strings.HasSuffix(f.Name, goldenKAT) {
+				katfile, _ = f.Open()
+				gotkat = true
+				break
+			}
 		}
-	}
-
-	if !gotkat {
-		t.Fatal("failed to get golden KAT data")
+	**/
+	goldenKAT := fmt.Sprintf("PQCkemKAT_%d.rsp", k.params.SIZESK)
+	katfile, err := os.Open("testdata/" + goldenKAT)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	r := bufio.NewReader(katfile)
@@ -123,7 +128,7 @@ func testKAT(t *testing.T, zipfile *zip.ReadCloser, k *Kyber) {
 	kseed := make([]byte, 2*SEEDBYTES)
 	eseed := make([]byte, SEEDBYTES)
 
-	g := randombyte_init(&seed)
+	g := randombyteInit(&seed)
 	opk, pk := make([]byte, k.SIZEPK()), make([]byte, k.SIZEPK())
 	osk, sk := make([]byte, k.SIZESK()), make([]byte, k.SIZESK())
 	var msg []byte
@@ -157,7 +162,7 @@ func testKAT(t *testing.T, zipfile *zip.ReadCloser, k *Kyber) {
 					t.Fatal("expected 48 byte seed")
 				}
 				g.randombytes(seed[:])
-				g2 := randombyte_init(&seed)
+				g2 := randombyteInit(&seed)
 				g2.randombytes(kseed[:32])
 				g2.randombytes(kseed[32:])
 				g2.randombytes(eseed)

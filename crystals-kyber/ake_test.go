@@ -9,7 +9,7 @@ func TestAKE(t *testing.T) {
 	kybercca := NewKyber512()
 	kybercpa := NewTweakedKyber512()
 	spk1, ssk1 := kybercca.KeyGen(nil)
-	spk2, ssk2 := kybercpa.KeyGen(nil)
+	spk2, ssk2 := kybercca.KeyGen(nil)
 
 	/**P1**/
 	ake1 := NewAKE(spk1, ssk1, spk2, kybercca, kybercpa)

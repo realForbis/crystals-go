@@ -18,6 +18,7 @@ func BenchmarkRSA(b *testing.B) {
 func BenchmarkRSAEnc(b *testing.B) {
 	sk, _ := rsa.GenerateKey(rand.Reader, nbits)
 	var msg [50]byte
+	rand.Read(msg[:])
 	for n := 0; n < b.N; n++ {
 		rsa.EncryptOAEP(sha256.New(), rand.Reader, &sk.PublicKey, msg[:], nil)
 	}
@@ -26,18 +27,19 @@ func BenchmarkRSAEnc(b *testing.B) {
 func BenchmarkRSADec(b *testing.B) {
 	sk, _ := rsa.GenerateKey(rand.Reader, nbits)
 	var msg [50]byte
+	rand.Read(msg[:])
 	c, _ := rsa.EncryptOAEP(sha256.New(), rand.Reader, &sk.PublicKey, msg[:], nil)
 	for n := 0; n < b.N; n++ {
 		rsa.DecryptOAEP(sha256.New(), rand.Reader, sk, c, nil)
 	}
 }
 
-func BenchmarkPKEKeyGen512(b *testing.B) { benchmarkPKEKeyGen(b, NewKyber512()) }
-func BenchmarkEncrypt512(b *testing.B)   { benchmarkEncrypt(b, NewKyber512()) }
-func BenchmarkDecrypt512(b *testing.B)   { benchmarkDecrypt(b, NewKyber512()) }
-func BenchmarkKeyGen512(b *testing.B)    { benchmarkKeyGen(b, NewKyber512()) }
-func BenchmarkEncaps512(b *testing.B)    { benchmarkEncaps(b, NewKyber512()) }
-func BenchmarkDecaps512(b *testing.B)    { benchmarkDecaps(b, NewKyber512()) }
+func BenchmarkPKEKeyGen512(b *testing.B) { benchmarkPKEKeyGen(b, NewTweakedKyber512()) }
+func BenchmarkEncrypt512(b *testing.B)   { benchmarkEncrypt(b, NewTweakedKyber512()) }
+func BenchmarkDecrypt512(b *testing.B)   { benchmarkDecrypt(b, NewTweakedKyber512()) }
+func BenchmarkKeyGen512(b *testing.B)    { benchmarkKeyGen(b, NewTweakedKyber512()) }
+func BenchmarkEncaps512(b *testing.B)    { benchmarkEncaps(b, NewTweakedKyber512()) }
+func BenchmarkDecaps512(b *testing.B)    { benchmarkDecaps(b, NewTweakedKyber512()) }
 
 func BenchmarkPKEKeyGen768(b *testing.B) { benchmarkPKEKeyGen(b, NewKyber768()) }
 func BenchmarkEncrypt768(b *testing.B)   { benchmarkEncrypt(b, NewKyber768()) }
@@ -65,7 +67,7 @@ func benchmarkEncrypt(b *testing.B, k *Kyber) {
 	var r [32]byte
 	msg := []byte("Very random message to sign in the benchmark")
 	for n := 0; n < b.N; n++ {
-		k.Encrypt(msg, r[:], pk)
+		k.Encrypt(pk, msg, r[:])
 	}
 }
 
@@ -73,7 +75,7 @@ func benchmarkDecrypt(b *testing.B, k *Kyber) {
 	sk := make([]byte, k.SIZEPKESK())
 	c := make([]byte, k.SIZEC())
 	for n := 0; n < b.N; n++ {
-		k.Decrypt(c, sk)
+		k.Decrypt(sk, c)
 	}
 }
 
@@ -87,7 +89,7 @@ func benchmarkEncaps(b *testing.B, k *Kyber) {
 	pk := make([]byte, k.SIZEPK())
 	var r [SEEDBYTES]byte
 	for n := 0; n < b.N; n++ {
-		k.Encaps(r[:], pk)
+		k.Encaps(pk, r[:])
 	}
 }
 
@@ -95,6 +97,6 @@ func benchmarkDecaps(b *testing.B, k *Kyber) {
 	sk := make([]byte, k.SIZESK())
 	c := make([]byte, k.SIZEC())
 	for n := 0; n < b.N; n++ {
-		k.Decaps(c, sk)
+		k.Decaps(sk, c)
 	}
 }

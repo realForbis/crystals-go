@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+/** CCA **/
 func BenchmarkCCAKEM(b *testing.B) {
 	k := NewKyber512()
 
@@ -39,11 +40,7 @@ func BenchmarkCCAKEMDecaps(b *testing.B) {
 	}
 }
 
-func TestCCAFailure(t *testing.T) {
-	k := NewKyber512()
-	//testCCAFailureRate(k)
-	testSizes(k)
-}
+/** CPA **/
 
 func BenchmarkCPAKEM(b *testing.B) {
 	k := NewKyber512()
@@ -51,7 +48,7 @@ func BenchmarkCPAKEM(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		pk, sk := k.CPAKeyGen()
 		c, _ := k.CPAEncaps(pk)
-		k.CPADecaps(c, sk)
+		k.CPADecaps(sk, c)
 	}
 }
 
@@ -73,29 +70,24 @@ func BenchmarkCPAKEMDecaps(b *testing.B) {
 		pk, sk := k.CPAKeyGen()
 		c, _ := k.CPAEncaps(pk)
 		b.StartTimer()
-		k.CPADecaps(c, sk)
+		k.CPADecaps(sk, c)
 		b.StopTimer()
 	}
 }
 
-func TestCPAFailure(t *testing.T) {
-	k := NewKyber512()
-	//	testFailureRate(k)
-	testSizes(k)
-}
-
+/** Tweaked CPA **/
 func BenchmarkCPAKEMTweaked(b *testing.B) {
 	k := NewTweakedKyber512()
 
 	for i := 0; i < b.N; i++ {
 		pk, sk := k.CPAKeyGen()
 		c, _ := k.CPAEncaps(pk)
-		k.CPADecaps(c, sk)
+		k.CPADecaps(sk, c)
 	}
 }
 
 func BenchmarkCPAKEMTweakedEncaps(b *testing.B) {
-	k := NewKyber512()
+	k := NewTweakedKyber512()
 
 	for i := 0; i < b.N; i++ {
 		pk, _ := k.CPAKeyGen()
@@ -106,51 +98,28 @@ func BenchmarkCPAKEMTweakedEncaps(b *testing.B) {
 }
 
 func BenchmarkCPAKEMTweakedDecaps(b *testing.B) {
-	k := NewKyber512()
+	k := NewTweakedKyber512()
 
 	for i := 0; i < b.N; i++ {
 		pk, sk := k.CPAKeyGen()
 		c, _ := k.CPAEncaps(pk)
 		b.StartTimer()
-		k.CPADecaps(c, sk)
+		k.CPADecaps(sk, c)
 		b.StopTimer()
 	}
 }
 
 func TestCPATweakedFailure(t *testing.T) {
 	k := NewTweakedKyber512()
-	testFailureRate(k)
-	testSizes(k)
-}
-
-func testCCAFailureRate(k *Kyber) {
 	failed := 0
-	iters := 1000000
-	for i := 0; i < iters; i++ {
-		pk, sk := k.KeyGen(nil)
-		c, ss := k.Encaps(nil, pk)
-		ss2 := k.Decaps(c, sk)
-		if !bytes.Equal(ss[:], ss2[:]) {
-			failed++
-		}
-	}
-	fmt.Printf("\n\nFailed %d out of %d\n", failed, iters)
-}
-
-func testFailureRate(k *Kyber) {
-	failed := 0
-	iters := 1000000
+	iters := 10000000
 	for i := 0; i < iters; i++ {
 		pk, sk := k.CPAKeyGen()
 		c, ss := k.CPAEncaps(pk)
-		ss2 := k.CPADecaps(c, sk)
+		ss2 := k.CPADecaps(sk, c)
 		if !bytes.Equal(ss[:], ss2[:]) {
 			failed++
 		}
 	}
 	fmt.Printf("Failed %d out of %d\n", failed, iters)
-}
-
-func testSizes(k *Kyber) {
-	fmt.Printf("Size public key %d, ciphertext %d\n", k.SIZEPK(), k.SIZEC())
 }

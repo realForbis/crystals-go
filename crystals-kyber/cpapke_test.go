@@ -7,22 +7,28 @@ import (
 )
 
 func TestPKESuite(t *testing.T) {
+
+	testKeyGenRep(t, NewTweakedKyber512())
 	testKeyGenRep(t, NewKyber512())
 	testKeyGenRep(t, NewKyber768())
 	testKeyGenRep(t, NewKyber1024())
 
+	testEncryptRep(t, NewTweakedKyber512())
 	testEncryptRep(t, NewKyber512())
 	testEncryptRep(t, NewKyber768())
 	testEncryptRep(t, NewKyber1024())
 
-	testDecrypt(t, NewKyber512())
+	testDecrypt(t, NewTweakedKyber512())
+		testDecrypt(t, NewKyber512())
 	testDecrypt(t, NewKyber768())
 	testDecrypt(t, NewKyber1024())
 
+testPack(t, NewTweakedKyber512())
 	testPack(t, NewKyber512())
 	testPack(t, NewKyber768())
 	testPack(t, NewKyber1024())
 
+testBadSizePKE(t, NewTweakedKyber512())
 	testBadSizePKE(t, NewKyber512())
 	testBadSizePKE(t, NewKyber768())
 	testBadSizePKE(t, NewKyber1024())
@@ -39,8 +45,8 @@ func testKeyGenRep(t *testing.T, k *Kyber) {
 	var r, msg [32]byte
 	rand.Read(r[:])
 	rand.Read(msg[:])
-	c := k.Encrypt(msg[:], r[:], pk)
-	c2 := k.Encrypt(msg[:], r[:], pk)
+	c := k.Encrypt(pk, msg[:], r[:])
+	c2 := k.Encrypt(pk, msg[:], r[:])
 	if !bytes.Equal(c, c2) {
 		t.Fatalf("Seed in keygen failed")
 	}
@@ -51,12 +57,12 @@ func testEncryptRep(t *testing.T, k *Kyber) {
 	var r, msg [32]byte
 	rand.Read(r[:])
 	rand.Read(msg[:])
-	c := k.Encrypt(msg[:], r[:], pk)
-	c2 := k.Encrypt(msg[:], r[:], pk)
+	c := k.Encrypt(pk, msg[:], r[:])
+	c2 := k.Encrypt(pk, msg[:], r[:])
 	if !bytes.Equal(c, c2) {
 		t.Fatalf("Coins failed")
 	}
-	c3 := k.Encrypt(msg[:], nil, pk)
+	c3 := k.Encrypt(pk, msg[:], nil)
 	if bytes.Equal(c, c3) {
 		t.Fatalf("Coins failed")
 	}
@@ -67,8 +73,8 @@ func testDecrypt(t *testing.T, k *Kyber) {
 	var r, msg [32]byte
 	rand.Read(r[:])
 	rand.Read(msg[:])
-	c := k.Encrypt(msg[:], r[:], pk)
-	msgRecov := k.Decrypt(c, sk)
+	c := k.Encrypt(pk, msg[:], r[:])
+	msgRecov := k.Decrypt(sk, c)
 	if !bytes.Equal(msg[:], msgRecov[:]) {
 		t.Fatal("Failed to decrypt")
 	}
@@ -88,12 +94,12 @@ func testPack(t *testing.T, k *Kyber) {
 
 func testBadSizePKE(t *testing.T, k *Kyber) {
 	msg := make([]byte, 50)
-	c := k.Encrypt(msg, nil, nil)
+	c := k.Encrypt(nil, msg, nil)
 	if c != nil {
 		t.Fatal("Encrypt should not work with empty key.")
 	}
 
-	c = k.Encrypt([]byte("Short message"), nil, nil)
+	c = k.Encrypt(nil, []byte("Short message"), nil)
 
 	if c != nil {
 		t.Fatal("Encrypt should not work with empty inputs.")
